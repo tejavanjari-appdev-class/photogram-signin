@@ -1,8 +1,44 @@
 class UsersController < ApplicationController
+  def new_registration
+    render({ :template => "users/sign_up_form.html.erb" })
+  end
+
+  def new_session
+    render({ :template => "users/sign_in_form.html.erb" })
+  end
+
+  def toast_cookies
+    reset_session
+    redirect_to("/", {:notice => "See ya later!"})
+  end 
+
+  def authenticate
+    # get user name, password from params
+    un = params.fetch("input_username")
+    pw = params.fetch("input_password")
+    # look for username
+    user = User.where({:username => un}).at(0)
+    # if no match -> sign in error
+    if user == nil
+      redirect_to('/user_sign_in', {:alert => "No username matches"})
+    else
+      # if match, check passwords, -> set cookies
+      if user.authenticate(pw)
+        session.store(:user_id, user.id)
+
+        redirect_to("/", {:notice => "Welcome back, " + user.username + "!"})
+      # if not -> sign in error
+      else
+        redirect_to('/user_sign_in', {:alert => "Wrong Password !!!"})
+      end
+    end
+    
+  end
+
   def index
     @users = User.all.order({ :username => :asc })
 
-    render({ :template => "users/index.html" })
+    render({ :template => "users/index.html.erb" })
   end
 
   def show
@@ -16,10 +52,19 @@ class UsersController < ApplicationController
     user = User.new
 
     user.username = params.fetch("input_username")
+    user.password = params.fetch("input_password")
+    user.password_confirmation = params.fetch("input_password_confirmation")
 
-    user.save
+    save_status = user.save
 
-    redirect_to("/users/#{user.username}")
+    if save_status
+      session.store(:user_id, user.id)
+      redirect_to("/users/#{user.username}", {:notice => "Welcome, " + user.username + "!"})
+    else
+      redirect_to("/user_sign_up", {:alert => user.errors.full_messages})
+    end
+
+    
   end
 
   def update
